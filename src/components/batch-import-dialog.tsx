@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { money, type Product } from "@/data/catalog";
+import { isHeicFile, normalizeImageFile } from "@/lib/normalize-image";
 import { analyzeProductWithAi, type AiProductAnalysis } from "@/services/aiProductService";
 import { mergeOptionValues, optionLookupKey } from "@/services/catalogOptionsService";
 import {
@@ -26,7 +27,14 @@ import {
 export const AUTO_DETECT_OPTION = "__AUTO__";
 export const BATCH_ITEM_DELAY_MS = 800;
 
-export type BatchItemStatus = "queued" | "analyzing" | "uploading" | "saving" | "done" | "error";
+export type BatchItemStatus =
+  | "converting"
+  | "queued"
+  | "analyzing"
+  | "uploading"
+  | "saving"
+  | "done"
+  | "error";
 
 export interface BatchQueueItem {
   id: string;
@@ -48,6 +56,7 @@ export interface BatchImportSettings {
 }
 
 export interface BatchImportRunnerDeps {
+  normalizeImage: (file: File) => Promise<File>;
   analyzeImage: (params: {
     file: File;
     availableCategories: string[];
@@ -112,6 +121,7 @@ export async function runSequentialBatchImport(params: {
   deps?: Partial<BatchImportRunnerDeps>;
 }): Promise<{ succeeded: number; failed: number }> {
   const deps: BatchImportRunnerDeps = {
+    normalizeImage: (file) => normalizeImageFile(file),
     analyzeImage: ({ file, availableCategories, availableMaterials }) =>
       analyzeProductWithAi({ file, availableCategories, availableMaterials }),
     uploadImage: (file) => uploadStoreImage(file, "products"),
@@ -136,9 +146,16 @@ export async function runSequentialBatchImport(params: {
     let uploadedUrl = "";
 
     try {
+      let workingFile = item.file;
+      if (isHeicFile(workingFile)) {
+        params.onItemUpdate(item.id, { status: "converting", error: "" });
+        workingFile = await deps.normalizeImage(workingFile);
+        params.onItemUpdate(item.id, { file: workingFile });
+      }
+
       params.onItemUpdate(item.id, { status: "analyzing", error: "" });
       const analysis = await deps.analyzeImage({
-        file: item.file,
+        file: workingFile,
         availableCategories: params.availableCategories,
         availableMaterials: params.availableMaterials,
       });
@@ -155,7 +172,7 @@ export async function runSequentialBatchImport(params: {
         params.availableMaterials,
         "Bijuteria Fina",
       );
-      const finalName = analysis.name.trim() || fallbackNameFromFile(item.file.name);
+      const finalName = analysis.name.trim() || fallbackNameFromFile(workingFile.name);
 
       params.onItemUpdate(item.id, {
         status: "uploading",
@@ -164,7 +181,7 @@ export async function runSequentialBatchImport(params: {
         resolvedMaterial: finalMaterial,
       });
 
-      const uploaded = await deps.uploadImage(item.file);
+      const uploaded = await deps.uploadImage(workingFile);
       uploadedUrl = uploaded.url;
 
       params.onItemUpdate(item.id, { status: "saving" });
@@ -227,6 +244,13 @@ interface BatchImportDialogProps {
 
 function StatusBadge({ item }: { item: BatchQueueItem }) {
   switch (item.status) {
+    case "converting":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-accent/35 bg-secondary px-2.5 py-1 text-[10px] font-medium text-primary">
+          <Loader2 size={11} className="animate-spin shrink-0" />
+          Convertendo HEIC...
+        </span>
+      );
     case "queued":
       return (
         <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
@@ -295,6 +319,7 @@ export function BatchImportDialog({
   const priceInputRef = useRef<HTMLInputElement | null>(null);
   const stage3Ref = useRef<HTMLElement | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
+  const batchSessionRef = useRef(0);
 
   const availableCategories = mergeOptionValues(categories);
   const availableMaterials = mergeOptionValues(materials);
@@ -307,6 +332,7 @@ export function BatchImportDialog({
   };
 
   const resetBatchState = () => {
+    batchSessionRef.current += 1;
     revokeAllPreviews();
     setItems([]);
     setHasRun(false);
@@ -318,6 +344,7 @@ export function BatchImportDialog({
 
   useEffect(() => {
     return () => {
+      batchSessionRef.current += 1;
       revokeAllPreviews();
     };
   }, []);
@@ -334,10 +361,59 @@ export function BatchImportDialog({
     onOpenChange(nextOpen);
   };
 
+  const convertPendingHeicItems = async (
+    entries: Array<{ id: string; file: File }>,
+    sessionId: number,
+  ) => {
+    for (const entry of entries) {
+      if (sessionId !== batchSessionRef.current) return;
+      try {
+        const jpegFile = await normalizeImageFile(entry.file);
+        if (sessionId !== batchSessionRef.current) return;
+
+        const previewUrl = URL.createObjectURL(jpegFile);
+        previewUrlsRef.current.add(previewUrl);
+
+        let attached = false;
+        setItems((prev) =>
+          prev.map((row) => {
+            if (row.id !== entry.id) return row;
+            attached = true;
+            return {
+              ...row,
+              file: jpegFile,
+              previewUrl,
+              status: "queued",
+              error: "",
+            };
+          }),
+        );
+        if (!attached) {
+          URL.revokeObjectURL(previewUrl);
+          previewUrlsRef.current.delete(previewUrl);
+        }
+      } catch (err) {
+        if (sessionId !== batchSessionRef.current) return;
+        const message = summarizeBatchError(err);
+        setItems((prev) =>
+          prev.map((row) =>
+            row.id === entry.id
+              ? {
+                  ...row,
+                  status: "error",
+                  error: message,
+                }
+              : row,
+          ),
+        );
+      }
+    }
+  };
+
   const addFiles = (fileList: FileList | File[]) => {
     const incoming = Array.from(fileList);
     const validImages = incoming.filter(
-      (file) => !file.type || file.type.startsWith("image/"),
+      (file) => isHeicFile(file) || !file.type || file.type.startsWith("image/"),
     );
     const skipped = incoming.length - validImages.length;
     if (skipped > 0) {
@@ -349,11 +425,28 @@ export function BatchImportDialog({
     }
     if (validImages.length === 0) return;
 
+    const heicToConvert: Array<{ id: string; file: File }> = [];
     const created: BatchQueueItem[] = validImages.map((file) => {
+      const id = crypto.randomUUID();
+      if (isHeicFile(file)) {
+        heicToConvert.push({ id, file });
+        return {
+          id,
+          file,
+          previewUrl: "",
+          status: "converting",
+          generatedName: "",
+          resolvedCategory: "",
+          resolvedMaterial: "",
+          savedActive: autoPublish,
+          error: "",
+        };
+      }
+
       const previewUrl = URL.createObjectURL(file);
       previewUrlsRef.current.add(previewUrl);
       return {
-        id: crypto.randomUUID(),
+        id,
         file,
         previewUrl,
         status: "queued",
@@ -366,6 +459,11 @@ export function BatchImportDialog({
     });
 
     setItems((prev) => [...prev, ...created]);
+
+    if (heicToConvert.length > 0) {
+      const sessionId = batchSessionRef.current;
+      void convertPendingHeicItems(heicToConvert, sessionId);
+    }
   };
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -388,7 +486,7 @@ export function BatchImportDialog({
     if (isRunning) return;
     setItems((prev) => {
       const target = prev.find((item) => item.id === id);
-      if (target) {
+      if (target?.previewUrl) {
         URL.revokeObjectURL(target.previewUrl);
         previewUrlsRef.current.delete(target.previewUrl);
       }
@@ -397,12 +495,13 @@ export function BatchImportDialog({
   };
 
   const parsedPrice = parseBatchPrice(priceInput);
+  const convertingCount = items.filter((i) => i.status === "converting").length;
   const doneCount = items.filter((i) => i.status === "done").length;
   const errorCount = items.filter((i) => i.status === "error").length;
   const queuedCount = items.filter((i) => i.status === "queued").length;
 
   const startProcessing = async (mode: "all" | "retry_failed") => {
-    if (isRunning) return;
+    if (isRunning || convertingCount > 0) return;
     if (parsedPrice <= 0) {
       toast.error("Informe um preço único válido para o lote antes de iniciar.");
       priceInputRef.current?.focus();
@@ -454,7 +553,19 @@ export function BatchImportDialog({
         availableMaterials,
         onItemUpdate: (id, patch) => {
           setItems((prev) =>
-            prev.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+            prev.map((row) => {
+              if (row.id !== id) return row;
+              let nextPreview = row.previewUrl;
+              if (patch.file && patch.file !== row.file && !isHeicFile(patch.file)) {
+                if (row.previewUrl) {
+                  URL.revokeObjectURL(row.previewUrl);
+                  previewUrlsRef.current.delete(row.previewUrl);
+                }
+                nextPreview = URL.createObjectURL(patch.file);
+                previewUrlsRef.current.add(nextPreview);
+              }
+              return { ...row, ...patch, previewUrl: nextPreview };
+            }),
           );
         },
         onProgress: (current, total) => {
@@ -495,7 +606,11 @@ export function BatchImportDialog({
   const completedInRun = items.filter((i) => i.status === "done" || i.status === "error").length;
   const progressPercent = isRunning
     ? runProgress.total > 0
-      ? Math.min(99, Math.round(((runProgress.current - 1) / runProgress.total) * 100) + Math.round(50 / runProgress.total))
+      ? Math.min(
+          99,
+          Math.round(((runProgress.current - 1) / runProgress.total) * 100) +
+            Math.round(50 / runProgress.total),
+        )
       : 0
     : items.length > 0
       ? Math.round((completedInRun / items.length) * 100)
@@ -639,7 +754,7 @@ export function BatchImportDialog({
                   <p className="text-[11px] text-muted-foreground">
                     {items.length === 0
                       ? "Nenhuma imagem selecionada"
-                      : `${items.length} ${items.length === 1 ? "imagem selecionada" : "imagens selecionadas"}`}
+                      : `${items.length} ${items.length === 1 ? "imagem selecionada" : "imagens selecionadas"}${convertingCount > 0 ? ` · Convertendo ${convertingCount} HEIC...` : ""}`}
                   </p>
                 </div>
               </div>
@@ -677,7 +792,7 @@ export function BatchImportDialog({
                 ref={fileInputRef}
                 id="batch-file-input"
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif"
                 multiple
                 disabled={isRunning}
                 onChange={handleFileInputChange}
@@ -692,7 +807,8 @@ export function BatchImportDialog({
                   : `${items.length} ${items.length === 1 ? "foto escolhida" : "fotos escolhidas"} — adicionar mais`}
               </span>
               <span className="text-[11px] text-muted-foreground">
-                Toque para escolher da galeria ou arraste várias imagens de uma vez (JPG, PNG, WebP)
+                Toque para escolher da galeria ou arraste várias imagens de uma vez (JPG, PNG, WebP,
+                HEIC/HEIF)
               </span>
             </label>
 
@@ -703,11 +819,28 @@ export function BatchImportDialog({
                     key={item.id}
                     className="group relative overflow-hidden rounded-lg border bg-background"
                   >
-                    <img
-                      src={item.previewUrl}
-                      alt={item.file.name}
-                      className="aspect-square w-full object-cover"
-                    />
+                    {item.status === "converting" ? (
+                      <div className="aspect-square w-full flex flex-col items-center justify-center gap-1.5 bg-secondary/50 px-2 text-center">
+                        <Loader2 size={18} className="animate-spin text-primary" />
+                        <span className="text-[10px] font-medium text-primary leading-tight">
+                          Convertendo HEIC...
+                        </span>
+                      </div>
+                    ) : item.previewUrl ? (
+                      <img
+                        src={item.previewUrl}
+                        alt={item.file.name}
+                        className="aspect-square w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="aspect-square w-full flex flex-col items-center justify-center gap-1 bg-destructive/10 px-2 text-center text-destructive"
+                        title={item.error}
+                      >
+                        <AlertCircle size={18} />
+                        <span className="text-[10px] font-medium leading-tight">Erro HEIC</span>
+                      </div>
+                    )}
                     <button
                       type="button"
                       disabled={isRunning}
@@ -744,7 +877,14 @@ export function BatchImportDialog({
 
             {!hasRun && !isRunning ? (
               <div className="rounded-lg border border-dashed bg-background/70 px-4 py-4 text-xs text-muted-foreground leading-6">
-                {items.length > 0 ? (
+                {convertingCount > 0 ? (
+                  <p className="inline-flex items-center gap-2 text-primary font-medium">
+                    <Loader2 size={14} className="animate-spin shrink-0" />
+                    Convertendo {convertingCount}{" "}
+                    {convertingCount === 1 ? "foto HEIC para JPEG" : "fotos HEIC para JPEG"} antes
+                    de iniciar...
+                  </p>
+                ) : items.length > 0 ? (
                   <p>
                     <strong className="text-foreground">
                       {items.length} {items.length === 1 ? "peça pronta" : "peças prontas"}
@@ -833,11 +973,23 @@ export function BatchImportDialog({
                       key={item.id}
                       className="flex items-center gap-3 px-3 py-2.5 sm:px-3.5 sm:py-3"
                     >
-                      <img
-                        src={item.previewUrl}
-                        alt={item.generatedName || item.file.name}
-                        className="h-12 w-12 shrink-0 rounded-md border bg-muted object-cover"
-                      />
+                      {item.previewUrl ? (
+                        <img
+                          src={item.previewUrl}
+                          alt={item.generatedName || item.file.name}
+                          className="h-12 w-12 shrink-0 rounded-md border bg-muted object-cover"
+                        />
+                      ) : (
+                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md border bg-muted text-muted-foreground">
+                          {item.status === "converting" ? (
+                            <Loader2 size={16} className="animate-spin text-primary" />
+                          ) : item.status === "error" ? (
+                            <AlertCircle size={16} className="text-destructive" />
+                          ) : (
+                            <ImagePlus size={16} />
+                          )}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs sm:text-sm font-medium text-foreground">
                           {item.generatedName || item.file.name}
@@ -894,11 +1046,20 @@ export function BatchImportDialog({
               <Button
                 type="button"
                 className="h-11 gap-2"
-                disabled={items.length === 0}
+                disabled={items.length === 0 || convertingCount > 0}
                 onClick={() => void startProcessing("all")}
               >
-                <Sparkles size={15} />
-                Iniciar importação ({items.length} {items.length === 1 ? "peça" : "peças"})
+                {convertingCount > 0 ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Convertendo HEIC ({convertingCount})...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={15} />
+                    Iniciar importação ({items.length} {items.length === 1 ? "peça" : "peças"})
+                  </>
+                )}
               </Button>
             </>
           ) : (
@@ -908,6 +1069,7 @@ export function BatchImportDialog({
                   <Button
                     type="button"
                     className="h-11 gap-2"
+                    disabled={convertingCount > 0}
                     onClick={() => void startProcessing("retry_failed")}
                   >
                     <RotateCcw size={15} />
@@ -918,6 +1080,7 @@ export function BatchImportDialog({
                   <Button
                     type="button"
                     className="h-11 gap-2"
+                    disabled={convertingCount > 0}
                     onClick={() => void startProcessing("all")}
                   >
                     <Sparkles size={15} />

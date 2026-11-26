@@ -40,6 +40,7 @@ import {
   uploadOriginalBannerImage,
   uploadStoreImage,
 } from "@/services/storageService";
+import { isHeicFile, normalizeImageFile } from "@/lib/normalize-image";
 import {
   money,
   priceOf,
@@ -106,6 +107,7 @@ export function AdminPanel() {
   const [sizeInfo, setSizeInfo] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [convertingHeic, setConvertingHeic] = useState(false);
   const [autoFillOnUpload, setAutoFillOnUpload] = useState(true);
   const [analyzingAi, setAnalyzingAi] = useState(false);
   const [inlineOptionType, setInlineOptionType] = useState<CatalogOptionType | null>(null);
@@ -220,8 +222,9 @@ export function AdminPanel() {
 
     setAnalyzingAi(true);
     try {
+      const normalizedFile = fileToUse ? await normalizeImageFile(fileToUse) : fileToUse;
       const analysis = await analyzeProductWithAi({
-        file: fileToUse,
+        file: normalizedFile,
         imageUrl: urlToUse,
         availableCategories,
         availableMaterials,
@@ -301,10 +304,15 @@ export function AdminPanel() {
     }
   }
 
-  async function upload(file: File, kind: "product" | "banner" | "profile") {
+  async function upload(rawFile: File, kind: "product" | "banner" | "profile") {
     const sessionId = productModalSessionRef.current;
     setUploading(true);
+    if (isHeicFile(rawFile)) {
+      setConvertingHeic(true);
+    }
     try {
+      const file = await normalizeImageFile(rawFile);
+      setConvertingHeic(false);
       const result =
         kind === "banner"
           ? await uploadOriginalBannerImage(file)
@@ -339,6 +347,7 @@ export function AdminPanel() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível preparar a foto.");
     } finally {
+      setConvertingHeic(false);
       setUploading(false);
     }
   }
@@ -1153,10 +1162,11 @@ export function AdminPanel() {
                   Foto principal
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.heic,.heif"
                     disabled={uploading}
                     onChange={(e) => {
                       const f = e.target.files?.[0];
+                      e.target.value = "";
                       if (f) void upload(f, "product");
                     }}
                   />
@@ -1168,7 +1178,11 @@ export function AdminPanel() {
                     className="h-40 w-full rounded object-contain bg-background border"
                   />
                 )}
-                {uploading && <p className="text-xs text-muted-foreground">Enviando foto...</p>}
+                {uploading && (
+                  <p className="text-xs text-muted-foreground">
+                    {convertingHeic ? "Convertendo foto HEIC para JPEG..." : "Enviando foto..."}
+                  </p>
+                )}
                 {sizeInfo && <p className="text-xs text-primary">Foto comprimida: {sizeInfo}</p>}
                 <label>
                   Ou URL da foto
@@ -1666,10 +1680,11 @@ export function AdminPanel() {
                   Imagem do banner (16:9)
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.heic,.heif"
                     disabled={uploading}
                     onChange={(e) => {
                       const f = e.target.files?.[0];
+                      e.target.value = "";
                       if (f) void upload(f, "banner");
                     }}
                   />
@@ -1681,7 +1696,11 @@ export function AdminPanel() {
                     className="w-full h-36 object-contain bg-muted rounded"
                   />
                 )}
-                {uploading && <p className="text-xs text-muted-foreground">Enviando foto...</p>}
+                {uploading && (
+                  <p className="text-xs text-muted-foreground">
+                    {convertingHeic ? "Convertendo foto HEIC para JPEG..." : "Enviando foto..."}
+                  </p>
+                )}
                 {sizeInfo && (
                   <p className="text-xs text-muted-foreground">Arquivo original ({sizeInfo})</p>
                 )}
@@ -1926,14 +1945,20 @@ export function AdminPanel() {
             Foto
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               disabled={uploading}
               onChange={(e) => {
                 const f = e.target.files?.[0];
+                e.target.value = "";
                 if (f) void upload(f, "profile");
               }}
             />
           </label>
+          {uploading && (
+            <p className="text-xs text-muted-foreground">
+              {convertingHeic ? "Convertendo foto HEIC para JPEG..." : "Enviando foto..."}
+            </p>
+          )}
           <label>
             Nome
             <input

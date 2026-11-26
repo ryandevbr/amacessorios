@@ -210,4 +210,65 @@ describe("Batch import helpers and sequential runner", () => {
       price: 25,
     });
   });
+
+  it("converts HEIC files before AI analysis and upload with 'converting' status", async () => {
+    const heicFile = new File(["heic"], "IMG_9999.HEIC", { type: "image/heic" });
+    const convertedFile = new File(["jpg"], "IMG_9999.jpg", { type: "image/jpeg" });
+    const item: BatchQueueItem = {
+      id: "heic-1",
+      file: heicFile,
+      previewUrl: "",
+      status: "queued",
+      generatedName: "",
+      resolvedCategory: "",
+      resolvedMaterial: "",
+      savedActive: true,
+      error: "",
+    };
+
+    const statuses: BatchQueueItem["status"][] = [];
+    const analyzeSpy = vi.fn().mockResolvedValue({
+      name: "Brinco Pérola",
+      category: "Brincos",
+      material: "Bijuteria Fina",
+      description: "Brinco delicado.",
+      characteristics: [{ label: "Cor", value: "Dourado" }],
+    });
+    const uploadSpy = vi.fn().mockResolvedValue({
+      url: "https://cdn.example/IMG_9999.webp",
+      original: 1000,
+      compressed: 300,
+      wasCompressed: true,
+    });
+
+    const result = await runSequentialBatchImport({
+      items: [item],
+      targetIds: ["heic-1"],
+      settings: {
+        price: 15,
+        selectedCategory: "Brincos",
+        selectedMaterial: "Bijuteria Fina",
+        autoPublish: true,
+      },
+      availableCategories: ["Brincos"],
+      availableMaterials: ["Bijuteria Fina"],
+      onItemUpdate: (_id, patch) => {
+        if (patch.status) statuses.push(patch.status);
+      },
+      onProgress: () => {},
+      deps: {
+        normalizeImage: vi.fn().mockResolvedValue(convertedFile),
+        analyzeImage: analyzeSpy,
+        uploadImage: uploadSpy,
+        deleteImage: async () => {},
+        saveProduct: async () => {},
+        wait: async () => {},
+      },
+    });
+
+    expect(result).toEqual({ succeeded: 1, failed: 0 });
+    expect(statuses).toEqual(["converting", "analyzing", "uploading", "saving", "done"]);
+    expect(analyzeSpy.mock.calls[0]?.[0]?.file).toBe(convertedFile);
+    expect(uploadSpy.mock.calls[0]?.[0]).toBe(convertedFile);
+  });
 });
