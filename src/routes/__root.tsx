@@ -20,7 +20,7 @@ function NotFoundComponent() {
         <img
           src="/logo.png"
           alt="AM Acessórios e Makes"
-          className="mx-auto mb-8 h-20 w-auto object-contain"
+          className="mx-auto mb-8 h-28 sm:h-32 w-auto object-contain"
         />
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">
@@ -52,7 +52,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
         <img
           src="/logo.png"
           alt="AM Acessórios e Makes"
-          className="mx-auto mb-6 h-14 w-auto object-contain"
+          className="mx-auto mb-6 h-24 sm:h-28 w-auto object-contain"
         />
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           Não foi possível carregar esta página

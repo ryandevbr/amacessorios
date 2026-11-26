@@ -65,7 +65,7 @@ function Login() {
         <img
           src="/logo.png"
           alt="AM Acessórios e Makes"
-          className="mx-auto mb-6 h-20 w-auto object-contain"
+          className="mx-auto mb-6 h-28 sm:h-32 w-auto object-contain"
         />
         <LockKeyhole size={22} className="mx-auto text-primary mb-4" />
         <h1 className="text-4xl">Seu espaço de cuidado</h1>

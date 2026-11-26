@@ -232,7 +232,7 @@ export function Storefront() {
         </div>
       )}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
-        <div className="shell flex items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] h-18 sm:h-20 md:h-21">
+        <div className="shell flex items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] min-h-20 sm:min-h-24 py-2">
           <a
             href="#inicio"
             aria-label="AM Acessórios e Makes — início"
@@ -241,7 +241,7 @@ export function Storefront() {
             <img
               src="/logo.png"
               alt="AM Acessórios e Makes"
-              className="h-11 sm:h-12 w-auto object-contain"
+              className="h-16 sm:h-20 w-auto max-w-50 sm:max-w-60 object-contain"
             />
           </a>
           <nav className="hidden md:flex justify-center gap-8 text-xs text-muted-foreground">
@@ -646,7 +646,7 @@ export function Storefront() {
             <img
               src="/logo.png"
               alt="AM Acessórios e Makes"
-              className="h-14 w-auto object-contain"
+              className="h-24 sm:h-28 w-auto object-contain"
             />
             <p className="text-[11px] text-muted-foreground mt-3 max-w-xs">{storeContent.slogan}</p>
           </div>

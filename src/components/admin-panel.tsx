@@ -477,11 +477,11 @@ export function AdminPanel() {
   return (
     <main className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="shell h-18 md:h-21 flex items-center justify-between gap-3">
+        <div className="shell min-h-18 sm:min-h-20 py-2 flex items-center justify-between gap-3">
           <img
             src="/logo.png"
             alt="AM Acessórios e Makes"
-            className="h-10 w-auto object-contain"
+            className="h-14 sm:h-16 w-auto object-contain"
           />
           <div className="flex gap-2 shrink-0">
             <Button
