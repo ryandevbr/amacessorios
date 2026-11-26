@@ -350,7 +350,7 @@ export function Storefront() {
                 </Button>
               </div>
               <a
-                href="#onde-estamos"
+                href="#loja-fisica"
                 className="inline-flex gap-2 items-center text-[11px] text-muted-foreground hover:text-primary transition-colors mt-5"
               >
                 <MapPin size={14} className="text-primary shrink-0" />
@@ -572,7 +572,13 @@ export function Storefront() {
               ))}
             </div>
             <div className="grid md:grid-cols-3 gap-8 border-t mt-12 pt-8 text-xs text-muted-foreground">
-              <div className="rounded-xl bg-secondary/55 border border-brand-accent-light/45 p-5">
+              <a
+                id="loja-fisica"
+                href="https://www.google.com/maps/search/?api=1&query=Rua+Paulista%2C+45+-+Boa+Vista%2C+Caruaru+-+PE"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col rounded-xl bg-secondary/55 border border-brand-accent-light/45 p-5 scroll-mt-28 sm:scroll-mt-32 transition-all hover:border-[#84582E]/50 hover:shadow-md cursor-pointer"
+              >
                 <MapPin size={21} className="text-primary mb-3" />
                 <h3 className="text-xl text-foreground">Loja física em Caruaru</h3>
                 <p className="font-semibold text-foreground mt-2">{storeContent.address}</p>
@@ -581,7 +587,10 @@ export function Storefront() {
                   <strong className="text-foreground font-medium">Boa Vista</strong>, sem custo de
                   frete, ou escolher suas peças de perto.
                 </p>
-              </div>
+                <span className="mt-auto pt-4 inline-flex items-center gap-1 text-[11px] font-medium text-primary group-hover:underline">
+                  Ver localização no Google Maps ↗
+                </span>
+              </a>
               <div className="rounded-xl bg-secondary/55 border border-brand-accent-light/45 p-5">
                 <Truck size={21} className="text-primary mb-3" />
                 <h3 className="text-xl text-foreground">Entrega e pagamento</h3>
