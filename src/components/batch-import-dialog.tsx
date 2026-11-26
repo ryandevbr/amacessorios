@@ -248,7 +248,7 @@ function StatusBadge({ item }: { item: BatchQueueItem }) {
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-accent/35 bg-secondary px-2.5 py-1 text-[10px] font-medium text-primary">
           <Loader2 size={11} className="animate-spin shrink-0" />
-          Convertendo HEIC...
+          Convertendo...
         </span>
       );
     case "queued":
@@ -511,15 +511,22 @@ export function BatchImportDialog({
     const targets =
       mode === "retry_failed"
         ? items.filter((item) => item.status === "error")
-        : items.filter((item) => item.status !== "done");
+        : items.filter((item) => item.status === "queued");
 
     if (targets.length === 0) {
-      toast.error("Selecione ao menos uma foto para iniciar a importação.");
+      toast.error(
+        mode === "retry_failed"
+          ? "Não há itens com falha para tentar novamente."
+          : "Nenhuma foto válida pronta para importação.",
+      );
       return;
     }
 
     const targetIds = targets.map((item) => item.id);
     const targetSet = new Set(targetIds);
+    const alreadyDoneCount = items.filter((item) => item.status === "done").length;
+    const preExistingErrorCount =
+      mode === "retry_failed" ? 0 : items.filter((item) => item.status === "error").length;
 
     setItems((prev) =>
       prev.map((item) =>
@@ -587,16 +594,16 @@ export function BatchImportDialog({
     }
 
     const totalItems = items.length;
-    const totalSucceededNow =
-      items.filter((i) => i.status === "done").length + batchSucceeded;
+    const totalSucceededNow = alreadyDoneCount + batchSucceeded;
+    const totalFailedNow = preExistingErrorCount + batchFailed;
 
-    if (batchFailed === 0 && totalSucceededNow > 0) {
+    if (totalFailedNow === 0 && totalSucceededNow > 0) {
       toast.success(
         `${totalSucceededNow} de ${totalItems} ${totalItems === 1 ? "produto importado" : "produtos importados"} com sucesso!`,
       );
     } else if (totalSucceededNow > 0) {
       toast.warning(
-        `${totalSucceededNow} de ${totalItems} produtos importados com sucesso! ${batchFailed} ${batchFailed === 1 ? "item falhou" : "itens falharam"}.`,
+        `${totalSucceededNow} de ${totalItems} produtos importados com sucesso! ${totalFailedNow} ${totalFailedNow === 1 ? "item falhou" : "itens falharam"}.`,
       );
     } else {
       toast.error("Nenhuma peça foi importada. Confira os erros na fila e tente novamente.");
@@ -813,48 +820,68 @@ export function BatchImportDialog({
             </label>
 
             {items.length > 0 && !hasRun && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
-                {items.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    className="group relative overflow-hidden rounded-lg border bg-background"
-                  >
-                    {item.status === "converting" ? (
-                      <div className="aspect-square w-full flex flex-col items-center justify-center gap-1.5 bg-secondary/50 px-2 text-center">
-                        <Loader2 size={18} className="animate-spin text-primary" />
-                        <span className="text-[10px] font-medium text-primary leading-tight">
-                          Convertendo HEIC...
-                        </span>
-                      </div>
-                    ) : item.previewUrl ? (
-                      <img
-                        src={item.previewUrl}
-                        alt={item.file.name}
-                        className="aspect-square w-full object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="aspect-square w-full flex flex-col items-center justify-center gap-1 bg-destructive/10 px-2 text-center text-destructive"
-                        title={item.error}
-                      >
-                        <AlertCircle size={18} />
-                        <span className="text-[10px] font-medium leading-tight">Erro HEIC</span>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      disabled={isRunning}
-                      aria-label={`Remover foto ${item.file.name}`}
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="absolute top-1.5 right-1.5 grid h-6 w-6 place-items-center rounded-full bg-foreground/80 text-background shadow-xs transition-colors hover:bg-destructive cursor-pointer"
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                  {items.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className={`group relative overflow-hidden rounded-lg border bg-background ${
+                        item.status === "error" ? "border-destructive/50" : ""
+                      }`}
                     >
-                      <X size={13} />
-                    </button>
-                    <div className="truncate bg-background/95 px-1.5 py-1 text-[10px] text-muted-foreground">
-                      #{idx + 1} · {item.file.name}
+                      {item.status === "converting" ? (
+                        <div className="aspect-square w-full flex flex-col items-center justify-center gap-1.5 bg-secondary/50 px-2 text-center">
+                          <Loader2 size={18} className="animate-spin text-primary" />
+                          <span className="text-[10px] font-medium text-primary leading-tight">
+                            Convertendo...
+                          </span>
+                        </div>
+                      ) : item.previewUrl ? (
+                        <img
+                          src={item.previewUrl}
+                          alt={item.file.name}
+                          className="aspect-square w-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="aspect-square w-full flex flex-col items-center justify-center gap-1 bg-destructive/10 p-2 text-center text-destructive"
+                          title={item.error}
+                        >
+                          <AlertCircle size={16} className="shrink-0" />
+                          <span className="text-[10px] font-semibold leading-tight">
+                            Erro na foto
+                          </span>
+                          <span className="line-clamp-3 text-[9px] leading-tight text-destructive/90">
+                            {item.error || "Não foi possível converter este arquivo."}
+                          </span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        disabled={isRunning}
+                        aria-label={`Remover foto ${item.file.name}`}
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="absolute top-1.5 right-1.5 grid h-6 w-6 place-items-center rounded-full bg-foreground/80 text-background shadow-xs transition-colors hover:bg-destructive cursor-pointer"
+                      >
+                        <X size={13} />
+                      </button>
+                      <div className="truncate bg-background/95 px-1.5 py-1 text-[10px] text-muted-foreground">
+                        #{idx + 1} · {item.file.name}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                {errorCount > 0 && queuedCount > 0 && (
+                  <p className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
+                    {errorCount} {errorCount === 1 ? "arquivo falhou" : "arquivos falharam"} na
+                    conversão e {errorCount === 1 ? "será ignorado" : "serão ignorados"}. Você pode
+                    importar normalmente as outras{" "}
+                    <strong>
+                      {queuedCount} {queuedCount === 1 ? "peça válida" : "peças válidas"}
+                    </strong>
+                    .
+                  </p>
+                )}
               </div>
             )}
           </section>
@@ -884,10 +911,10 @@ export function BatchImportDialog({
                     {convertingCount === 1 ? "foto HEIC para JPEG" : "fotos HEIC para JPEG"} antes
                     de iniciar...
                   </p>
-                ) : items.length > 0 ? (
+                ) : queuedCount > 0 ? (
                   <p>
                     <strong className="text-foreground">
-                      {items.length} {items.length === 1 ? "peça pronta" : "peças prontas"}
+                      {queuedCount} {queuedCount === 1 ? "peça pronta" : "peças prontas"}
                     </strong>{" "}
                     para análise com IA
                     {parsedPrice > 0 ? ` a ${money(parsedPrice)} cada` : " (informe o preço acima)"}
@@ -906,6 +933,11 @@ export function BatchImportDialog({
                         : selectedMaterial}
                     </strong>
                     .
+                  </p>
+                ) : errorCount > 0 ? (
+                  <p className="text-destructive">
+                    Nenhum arquivo válido pronto para importação. Remova as fotos com erro ou
+                    selecione outras imagens na Etapa 2.
                   </p>
                 ) : (
                   <p>
@@ -1046,18 +1078,18 @@ export function BatchImportDialog({
               <Button
                 type="button"
                 className="h-11 gap-2"
-                disabled={items.length === 0 || convertingCount > 0}
+                disabled={queuedCount === 0 || convertingCount > 0}
                 onClick={() => void startProcessing("all")}
               >
                 {convertingCount > 0 ? (
                   <>
                     <Loader2 size={15} className="animate-spin" />
-                    Convertendo HEIC ({convertingCount})...
+                    Convertendo ({convertingCount})...
                   </>
                 ) : (
                   <>
                     <Sparkles size={15} />
-                    Iniciar importação ({items.length} {items.length === 1 ? "peça" : "peças"})
+                    Iniciar importação ({queuedCount} {queuedCount === 1 ? "peça" : "peças"})
                   </>
                 )}
               </Button>
