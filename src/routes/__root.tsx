@@ -82,31 +82,45 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   );
 }
 
+// Atualize o domínio abaixo se o subdomínio na Vercel for diferente
+const SITE_URL = "https://amacessorio.vercel.app";
+const OG_IMAGE_URL = `${SITE_URL}/og-image.png`;
+const OG_TITLE = "AM Acessórios e Makes | Catálogo Online e Loja Física";
+const OG_DESCRIPTION =
+  "Bijuterias, bolsas, cintos e maquiagens a partir de R$ 6. Monte sua sacola online e envie seu pedido direto pelo WhatsApp!";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AM Acessórios e Makes | Loja Online e Física — Caruaru" },
+      { title: "AM Acessórios e Makes | Catálogo Online e Loja Física — Caruaru" },
       {
         name: "description",
         content:
-          "Acessórios, bijuterias, bolsas, cintos e maquiagens a partir de R$ 6. Loja física na Rua Paulista, 45 — Boa Vista, Caruaru - PE, e pedidos online pelo WhatsApp.",
+          "Bijuterias, bolsas, cintos e maquiagens a partir de R$ 6. Monte sua sacola online e finalize pelo WhatsApp com retirada no Boa Vista (Caruaru-PE) ou entrega.",
       },
       { name: "color-scheme", content: "light only" },
       // Remover no lançamento no domínio oficial.
       { name: "robots", content: "noindex, nofollow" },
-      {
-        property: "og:title",
-        content: "AM Acessórios e Makes | Loja Online e Física — Caruaru",
-      },
-      {
-        property: "og:description",
-        content:
-          "Acessórios, bijuterias, bolsas, cintos e maquiagens para transformar o seu look todos os dias. Retirada na loja no bairro Boa Vista (Caruaru - PE) ou entrega.",
-      },
+      // Open Graph
+      { property: "og:locale", content: "pt_BR" },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "AM Acessórios e Makes" },
+      { property: "og:title", content: OG_TITLE },
+      { property: "og:description", content: OG_DESCRIPTION },
+      { property: "og:url", content: `${SITE_URL}/` },
+      { property: "og:image", content: OG_IMAGE_URL },
+      { property: "og:image:secure_url", content: OG_IMAGE_URL },
+      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "AM Acessórios e Makes — Caruaru - PE" },
+      // Twitter Card
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: OG_TITLE },
+      { name: "twitter:description", content: OG_DESCRIPTION },
+      { name: "twitter:image", content: OG_IMAGE_URL },
     ],
     links: [
       {
