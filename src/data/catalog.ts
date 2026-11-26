@@ -88,60 +88,220 @@ export const emptyStoreData: StoreData = {
   promotion: { ...defaultPromotion },
   profile: { name: "Administradora", email: "", avatar: "" },
 };
-const names = [
-  "Argola Dourada Essencial",
-  "Colar Coração em Prata",
-  "Colar Duplo Pérola",
-  "Anel Solitário em Prata",
-  "Pulseira Riviera Dourada",
-  "Argola Delicada em Prata",
-  "Colar Sol Dourado",
-  "Pulseira Coração em Prata",
-  "Brinco Pérola Clássica",
-  "Anel Abraço em Prata",
-  "Conjunto Pérola Dourado",
-  "Colar Estrela em Prata",
-];
-const categories = [
+
+export const DEFAULT_CATEGORIES = [
   "Brincos",
   "Colares",
-  "Colares",
-  "Anéis",
+  "Chokers",
   "Pulseiras",
-  "Brincos",
-  "Colares",
-  "Pulseiras",
-  "Brincos",
+  "Braceletes",
   "Anéis",
   "Conjuntos",
-  "Colares",
+  "Piercing Fake",
+  "Cintos",
+  "Bolsas",
+  "Maquiagens",
+  "Acessórios de Cabelo",
+  "Chapéus & Lenços",
+  "Meia-calça",
+] as const;
+
+export const DEFAULT_MATERIALS = [
+  "Bijuteria Fina",
+  "Prata",
+  "Couro",
+  "Maquiagem",
+  "Acessório",
+] as const;
+
+export const categoriesList: string[] = [...DEFAULT_CATEGORIES];
+export const materialsList: string[] = [...DEFAULT_MATERIALS];
+
+interface DemoProductSeed {
+  name: string;
+  category: (typeof DEFAULT_CATEGORIES)[number];
+  material: (typeof DEFAULT_MATERIALS)[number];
+  price: number;
+  description: string;
+  characteristics: ProductCharacteristic[];
+}
+
+const demoSeeds: DemoProductSeed[] = [
+  {
+    name: "Brinco Argola Orgânica Dourada",
+    category: "Brincos",
+    material: "Bijuteria Fina",
+    price: 18.0,
+    description:
+      "Argola leve com acabamento polido e design moderno para iluminar suas produções do dia a dia ou eventos especiais.",
+    characteristics: [
+      { attribute: "Acabamento", value: "Dourado polido" },
+      { attribute: "Fecho", value: "Click prático" },
+      { attribute: "Estilo", value: "Versátil e moderno" },
+    ],
+  },
+  {
+    name: "Gloss Labial Brilho Espelhado",
+    category: "Maquiagens",
+    material: "Maquiagem",
+    price: 12.0,
+    description:
+      "Gloss confortável com efeito espelhado e toque hidratante que realça os lábios sozinho ou sobre o seu batom favorito.",
+    characteristics: [
+      { attribute: "Acabamento", value: "Brilho espelhado" },
+      { attribute: "Textura", value: "Leve e confortável" },
+      { attribute: "Ocasião", value: "Dia a dia e noite" },
+    ],
+  },
+  {
+    name: "Bolsa Tiracolo Caramelo Estruturada",
+    category: "Bolsas",
+    material: "Couro",
+    price: 89.9,
+    description:
+      "Bolsa prática e elegante com alça ajustável e acabamento sofisticado, ideal para levar o essencial com muito charme.",
+    characteristics: [
+      { attribute: "Cor", value: "Caramelo" },
+      { attribute: "Alça", value: "Tiracolo ajustável" },
+      { attribute: "Estilo", value: "Casual elegante" },
+    ],
+  },
+  {
+    name: "Colar Ponto de Luz em Prata",
+    category: "Colares",
+    material: "Prata",
+    price: 49.9,
+    description:
+      "Colar delicado com pingente brilhante, perfeito para usar sozinho ou criar mix estilosos com chokers.",
+    characteristics: [
+      { attribute: "Material", value: "Prata" },
+      { attribute: "Detalhe", value: "Ponto de luz" },
+      { attribute: "Estilo", value: "Clássico delicado" },
+    ],
+  },
+  {
+    name: "Cinto Fivela Dourada Caramelo",
+    category: "Cintos",
+    material: "Couro",
+    price: 39.9,
+    description:
+      "Cinto coringa com fivela dourada minimalista que marca a cintura e eleva vestidos, jeans e alfaiataria.",
+    characteristics: [
+      { attribute: "Cor", value: "Caramelo" },
+      { attribute: "Fivela", value: "Metal dourado" },
+      { attribute: "Ocasião", value: "Versátil" },
+    ],
+  },
+  {
+    name: "Piranha de Cabelo Fosca Latte",
+    category: "Acessórios de Cabelo",
+    material: "Acessório",
+    price: 8.0,
+    description:
+      "Prendedor de cabelo com acabamento fosco suave e excelente fixação para penteados rápidos e estilosos.",
+    characteristics: [
+      { attribute: "Cor", value: "Bege Latte" },
+      { attribute: "Acabamento", value: "Fosco suave" },
+      { attribute: "Fixação", value: "Firme e confortável" },
+    ],
+  },
+  {
+    name: "Choker Fita Laminada Dourada",
+    category: "Chokers",
+    material: "Bijuteria Fina",
+    price: 24.9,
+    description:
+      "Choker maleável com brilho espelhado que se ajusta suavemente ao pescoço e valoriza qualquer decote.",
+    characteristics: [
+      { attribute: "Acabamento", value: "Laminado dourado" },
+      { attribute: "Estilo", value: "Chique contemporâneo" },
+      { attribute: "Ocasião", value: "Dia e noite" },
+    ],
+  },
+  {
+    name: "Paleta de Sombras Tons Terrosos",
+    category: "Maquiagens",
+    material: "Maquiagem",
+    price: 29.9,
+    description:
+      "Cores neutras e cintilantes fáceis de esfumar para criar desde uma make natural até um esfumado marcante.",
+    characteristics: [
+      { attribute: "Tons", value: "Terrosos e cintilantes" },
+      { attribute: "Acabamento", value: "Matte e brilho" },
+      { attribute: "Pigmentação", value: "Alta fixação" },
+    ],
+  },
+  {
+    name: "Piercing Fake Cravejado",
+    category: "Piercing Fake",
+    material: "Bijuteria Fina",
+    price: 6.0,
+    description:
+      "Piercing de pressão super confortável que dispensa furo e traz um toque moderno imediato ao mix de orelha.",
+    characteristics: [
+      { attribute: "Encaixe", value: "Pressão confortável" },
+      { attribute: "Detalhe", value: "Pedrinhas brilhantes" },
+      { attribute: "Estilo", value: "Moderno" },
+    ],
+  },
+  {
+    name: "Anel Regulável Cravejado em Prata",
+    category: "Anéis",
+    material: "Prata",
+    price: 44.9,
+    description:
+      "Anel delicado com aro ajustável e brilho sutil, pensado para usar sozinho ou combinado com outros anéis.",
+    characteristics: [
+      { attribute: "Material", value: "Prata" },
+      { attribute: "Ajuste", value: "Regulável" },
+      { attribute: "Acabamento", value: "Polido" },
+    ],
+  },
+  {
+    name: "Conjunto Colar e Brinco Gota",
+    category: "Conjuntos",
+    material: "Bijuteria Fina",
+    price: 54.9,
+    description:
+      "Dupla harmoniosa com design em gota para finalizar o look com elegância sem esforço ou presentear alguém especial.",
+    characteristics: [
+      { attribute: "Composição", value: "Colar + par de brincos" },
+      { attribute: "Formato", value: "Gota polida" },
+      { attribute: "Ocasião", value: "Presente e eventos" },
+    ],
+  },
+  {
+    name: "Lenço Estampado Toque de Seda",
+    category: "Chapéus & Lenços",
+    material: "Acessório",
+    price: 22.0,
+    description:
+      "Lenço leve e versátil para usar no cabelo, no pescoço ou amarrado na alça da bolsa dando charme instantâneo.",
+    characteristics: [
+      { attribute: "Toque", value: "Macio acetinado" },
+      { attribute: "Uso", value: "Cabelo, pescoço ou bolsa" },
+      { attribute: "Estilo", value: "Fashion versátil" },
+    ],
+  },
 ];
-const prices = [69.9, 89.9, 119.9, 99.9, 149.9, 59.9, 79.9, 89.9, 39.9, 69.9, 189.9, 99.9];
+
 export const initialData: StoreData = {
-  products: names.map((name, i) => ({
-    id: `camile-${i + 1}`,
-    name,
-    sku: `UC${String(i + 1).padStart(3, "0")}`,
-    category: categories[i] ?? "Colares",
-    material: [1, 3, 5, 7, 9, 11].includes(i) ? "Prata 925" : "Semijoia",
-    price: prices[i] ?? 69.9,
-    sale_price: Number(((prices[i] ?? 69.9) * 0.8).toFixed(2)),
+  products: demoSeeds.map((seed, i) => ({
+    id: `am-${i + 1}`,
+    name: seed.name,
+    sku: `AM${String(i + 1).padStart(3, "0")}`,
+    category: seed.category,
+    material: seed.material,
+    price: seed.price,
+    sale_price: Number((seed.price * 0.8).toFixed(2)),
     is_on_sale: [0, 4, 10].includes(i),
     sale_label: "",
     image_url: "/logo.png",
-    description:
-      "Um toque de delicadeza para acompanhar seus melhores momentos. Uma peça selecionada com carinho, perfeita para compor looks e presentear alguém especial.",
+    description: seed.description,
     active: true,
     featured: i < 4,
     in_stock: i !== 9,
-    characteristics: [
-      {
-        attribute: "Material",
-        value: [1, 3, 5, 7, 9, 11].includes(i) ? "Prata 925" : "Banho de ouro 18k",
-      },
-      { attribute: "Acabamento", value: "Polido" },
-      { attribute: "Detalhes", value: "Design delicado" },
-    ],
+    characteristics: seed.characteristics,
   })),
   coupons: [
     {
@@ -156,7 +316,7 @@ export const initialData: StoreData = {
     },
     {
       id: "fixed",
-      code: "USECAMILE15",
+      code: "AMMAKE15",
       type: "fixed",
       value: 15,
       min_order_value: 120,
@@ -169,44 +329,34 @@ export const initialData: StoreData = {
     {
       id: "b1",
       image_url: "/logo.png",
-      alt: "Banner Use Camile Acessórios",
+      alt: "Banner AM Acessórios e Makes",
       active: true,
       filter: "",
     },
     {
       id: "b2",
       image_url: "/logo.png",
-      alt: "Banner Use Camile Acessórios",
+      alt: "Banner AM Acessórios e Makes",
       active: true,
-      filter: "Semijoias",
+      filter: "Maquiagens",
     },
     {
       id: "b3",
       image_url: "/logo.png",
-      alt: "Banner Use Camile Acessórios",
+      alt: "Banner AM Acessórios e Makes",
       active: true,
-      filter: "Prata 925",
+      filter: "Bijuteria Fina",
     },
   ],
   announcement: {
     active: true,
-    text: "Sua primeira compra merece um brilho extra: 10% OFF com PRIMEIRACOMPRA",
+    text: "Acessórios & Makes a partir de R$ 6 ✨ Use o cupom PRIMEIRACOMPRA e ganhe 10% OFF",
     link: "#vitrine",
   },
   promotion: { ...defaultPromotion },
   profile: { name: "Administradora", email: "", avatar: "" },
 };
-export const DEFAULT_CATEGORIES = [
-  "Anéis",
-  "Colares",
-  "Brincos",
-  "Pulseiras",
-  "Tornozeleiras",
-  "Conjuntos",
-] as const;
-export const DEFAULT_MATERIALS = ["Prata 925", "Semijoia"] as const;
-export const categoriesList: string[] = [...DEFAULT_CATEGORIES];
-export const materialsList: string[] = [...DEFAULT_MATERIALS];
+
 export const money = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const priceOf = (p: Product) => (p.is_on_sale ? p.sale_price : p.price);

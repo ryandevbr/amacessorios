@@ -21,6 +21,8 @@ import {
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BatchImportDialog } from "@/components/batch-import-dialog";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -63,6 +65,7 @@ export function AdminPanel() {
     loading,
     error,
     isRemote,
+    refresh,
     saveProduct,
     toggleProductField,
     duplicateProduct,
@@ -109,6 +112,7 @@ export function AdminPanel() {
   const [inlineOptionValue, setInlineOptionValue] = useState("");
   const [savingOption, setSavingOption] = useState(false);
   const [manageOptionsOpen, setManageOptionsOpen] = useState(false);
+  const [batchImportOpen, setBatchImportOpen] = useState(false);
   const [manageCategoryInput, setManageCategoryInput] = useState("");
   const [manageMaterialInput, setManageMaterialInput] = useState("");
   const [removingOptionId, setRemovingOptionId] = useState<string | null>(null);
@@ -400,9 +404,9 @@ export function AdminPanel() {
     const defaultCategory = categoryNames.includes("Brincos")
       ? "Brincos"
       : (categoryNames[0] ?? "Brincos");
-    const defaultMaterial = materialNames.includes("Semijoia")
-      ? "Semijoia"
-      : (materialNames[0] ?? "Semijoia");
+    const defaultMaterial = materialNames.includes("Bijuteria Fina")
+      ? "Bijuteria Fina"
+      : (materialNames[0] ?? "Bijuteria Fina");
     setEdit({
       id: crypto.randomUUID(),
       name: "",
@@ -465,12 +469,8 @@ export function AdminPanel() {
   return (
     <main className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="shell h-17 md:h-20 flex items-center justify-between gap-3">
-          <img
-            src="/logo.png"
-            alt="Use Camile Acessórios"
-            className="h-11 sm:h-12 md:h-14 w-auto shrink-0 object-contain"
-          />
+        <div className="shell h-18 md:h-21 flex items-center justify-between gap-3">
+          <BrandLogo size="header" />
           <div className="flex gap-2 shrink-0">
             <Button
               variant="ghost"
@@ -550,8 +550,8 @@ export function AdminPanel() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1 min-w-0">
                 <Search
                   className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
                   size={18}
@@ -563,10 +563,21 @@ export function AdminPanel() {
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
-              <Button className="h-12" onClick={newProduct}>
-                <Plus />
-                <span className="hidden sm:inline">Novo produto</span>
-              </Button>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 flex-1 sm:flex-none gap-2 border-primary/35 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                  onClick={() => setBatchImportOpen(true)}
+                >
+                  <Sparkles size={16} />
+                  <span>Importar em Lote (IA)</span>
+                </Button>
+                <Button className="h-12 flex-1 sm:flex-none" onClick={newProduct}>
+                  <Plus />
+                  <span>Novo produto</span>
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
               <select
@@ -801,7 +812,7 @@ export function AdminPanel() {
                 <span
                   className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium border ${
                     promoDraft.promo_active
-                      ? "bg-[#C91E7C]/10 text-[#C91E7C] border-[#C91E7C]/25"
+                      ? "bg-primary/10 text-primary border-primary/25"
                       : "bg-muted text-muted-foreground border-border"
                   }`}
                 >
@@ -929,7 +940,7 @@ export function AdminPanel() {
                     id: crypto.randomUUID(),
                     image_url: "",
                     mobile_image_url: null,
-                    alt: "Banner Use Camile Acessórios",
+                    alt: "Banner AM Acessórios e Makes",
                     active: true,
                     filter: "",
                     display_order: data.banners.length,
@@ -947,7 +958,7 @@ export function AdminPanel() {
               >
                 <img
                   src={b.image_url}
-                  alt={b.alt || "Banner Use Camile Acessórios"}
+                  alt={b.alt || "Banner AM Acessórios e Makes"}
                   className="w-full h-20 object-cover"
                 />
                 <div>
@@ -1252,7 +1263,7 @@ export function AdminPanel() {
                         type="text"
                         aria-label="Nova categoria"
                         className="text-base h-10"
-                        placeholder="Ex.: Tornozeleiras"
+                        placeholder="Ex.: Maquiagens, Cintos"
                         value={inlineOptionValue}
                         onChange={(e) => setInlineOptionValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -1325,7 +1336,7 @@ export function AdminPanel() {
                         type="text"
                         aria-label="Novo material"
                         className="text-base h-10"
-                        placeholder="Ex.: Aço Inox, Ródio Branco"
+                        placeholder="Ex.: Bijuteria Fina, Couro"
                         value={inlineOptionValue}
                         onChange={(e) => setInlineOptionValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -1718,7 +1729,7 @@ export function AdminPanel() {
                     await saveBanner({
                       ...banner,
                       mobile_image_url: null,
-                      alt: banner.alt.trim() || "Banner Use Camile Acessórios",
+                      alt: banner.alt.trim() || "Banner AM Acessórios e Makes",
                     });
                     cleanupPendingUploads(banner.image_url);
                     setBanner(null);
@@ -1769,6 +1780,14 @@ export function AdminPanel() {
           </div>
         </DialogContent>
       </Dialog>
+      <BatchImportDialog
+        open={batchImportOpen}
+        onOpenChange={setBatchImportOpen}
+        categories={filterCategories}
+        materials={filterMaterials}
+        onSaveProduct={(product) => saveProduct(product, { silent: true })}
+        onBatchComplete={refresh}
+      />
       <Dialog open={manageOptionsOpen} onOpenChange={setManageOptionsOpen}>
         <DialogContent className="max-h-[88dvh] overflow-hidden flex flex-col w-[calc(100%-24px)] max-w-lg">
           <DialogTitle className="font-display text-3xl">Categorias e materiais</DialogTitle>

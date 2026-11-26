@@ -1,6 +1,6 @@
-# Use Camile Acessórios
+# AM Acessórios e Makes
 
-Vitrine online da **Use Camile Acessórios** (Prata 925 e Semijoias), com catálogo filtrável, detalhes compartilháveis de peças, sacola de compras, aplicação de cupons, finalização de pedido via WhatsApp e painel administrativo.
+Vitrine online da **AM Acessórios e Makes** (`@amacessorio_`) — acessórios, bijuterias, bolsas, cintos e maquiagens com loja física na **Rua Paulista, 45 — Boa Vista, Caruaru - PE** e pedidos online. Inclui catálogo filtrável, detalhes compartilháveis, sacola de compras, aplicação de cupons, finalização de pedido via WhatsApp e painel administrativo.
 
 ## Stack utilizada
 

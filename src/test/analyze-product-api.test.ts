@@ -75,16 +75,14 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
     expect(res.status).toBe(400);
   });
 
-  it("fails fast from Groq 503 to Gemini fallback and returns meta { provider, model }", async () => {
+  it("fails fast from default Groq model to Gemini 2.5 Flash fallback and returns meta", async () => {
     process.env["AI_PROVIDER_ORDER"] = "groq,gemini,openrouter";
     process.env["GROQ_API_KEY"] = "groq-test";
     process.env["GEMINI_API_KEY"] = "gemini-test";
-    process.env["GEMINI_MODEL"] = "gemini-3.1-flash-lite";
-    process.env["GEMINI_FALLBACK_MODELS"] = "gemini-3.8-flash";
 
     const fetchMock = vi
       .fn()
-      // 1. Groq returns 503 with raw English error
+      // 1. Groq default model returns 503 with raw English error
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ error: { message: "Service temporarily overloaded" } }), {
           status: 503,
@@ -96,7 +94,7 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
           status: 429,
         }),
       )
-      // 3. Gemini fallback succeeds with markdown-fenced JSON
+      // 3. Gemini default fallback (gemini-2.5-flash) succeeds with markdown-fenced JSON
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -108,15 +106,15 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
                       text: [
                         "```json",
                         JSON.stringify({
-                          name: "Brinco Argola Cravejada Zircônias",
-                          category: "brincos",
-                          material: "semijoia",
+                          name: "Gloss Labial Brilho Espelhado",
+                          category: "maquiagens",
+                          material: "maquiagem",
                           description:
-                            "Argola sofisticada com brilho delicado para iluminar qualquer produção. Versátil e elegante para o dia a dia ou ocasiões especiais.",
+                            "Gloss confortável com brilho espelhado para realçar os lábios em qualquer ocasião. Prático para levar na bolsa e retocar ao longo do dia.",
                           characteristics: [
-                            { label: "Acabamento", value: "Polido dourado" },
-                            { label: "Pedra", value: "Zircônias cravejadas" },
-                            { label: "Estilo", value: "Clássico atemporal" },
+                            { label: "Acabamento", value: "Brilho espelhado" },
+                            { label: "Textura", value: "Leve e hidratante" },
+                            { label: "Ocasião", value: "Dia a dia e noite" },
                           ],
                         }),
                         "```",
@@ -138,14 +136,19 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
       body: JSON.stringify({
         imageBase64: SAMPLE_BASE64,
         mimeType: "image/webp",
-        availableCategories: ["Brincos", "Colares"],
-        availableMaterials: ["Prata 925", "Semijoia"],
+        availableCategories: ["Brincos", "Maquiagens", "Bolsas"],
+        availableMaterials: ["Bijuteria Fina", "Maquiagem", "Couro"],
       }),
     });
 
     const res = await handleAnalyzeProductRequest(req);
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    const groqBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? "{}")) as {
+      model?: string;
+    };
+    expect(groqBody.model).toBe("qwen/qwen3.8-27b");
 
     const json = (await res.json()) as {
       data: {
@@ -156,11 +159,11 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
       };
       meta: { provider: string; model: string };
     };
-    expect(json.data.name).toBe("Brinco Argola Cravejada Zircônias");
-    expect(json.data.category).toBe("Brincos");
-    expect(json.data.material).toBe("Semijoia");
+    expect(json.data.name).toBe("Gloss Labial Brilho Espelhado");
+    expect(json.data.category).toBe("Maquiagens");
+    expect(json.data.material).toBe("Maquiagem");
     expect(json.data.characteristics).toHaveLength(3);
-    expect(json.meta).toEqual({ provider: "gemini", model: "gemini-3.8-flash" });
+    expect(json.meta).toEqual({ provider: "gemini", model: "gemini-2.5-flash" });
   });
 
   it("never leaks raw English error when all providers fail with 503/429", async () => {
@@ -184,7 +187,7 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
         imageBase64: SAMPLE_BASE64,
         mimeType: "image/webp",
         availableCategories: ["Brincos"],
-        availableMaterials: ["Semijoia"],
+        availableMaterials: ["Bijuteria Fina"],
       }),
     });
 
@@ -202,11 +205,11 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
     const parsed = parseAndNormalizeAiJson(
       '```json\n{"name":"Colar Luz","category":"Inexistente","material":"Ouro Maciço","description":"Brilho delicado.","characteristics":[{"label":"Cor","value":"Dourado"}]}\n```',
       ["Colares", "Brincos"],
-      ["Semijoia", "Prata 925"],
+      ["Bijuteria Fina", "Prata"],
     );
 
     expect(parsed).not.toBeNull();
     expect(parsed?.category).toBe("Colares");
-    expect(parsed?.material).toBe("Semijoia");
+    expect(parsed?.material).toBe("Bijuteria Fina");
   });
 });

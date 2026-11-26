@@ -16,9 +16,9 @@ import { isSupabaseConfigured, requireSupabase, supabase } from "@/lib/supabase"
 import { normalizeCode } from "@/services/couponService";
 import { deleteStoreImage } from "@/services/storageService";
 
-const KEY = "use-camile-store-v1";
-const STORE_EVENT = "camile-store";
-const DEFAULT_BANNER_ALT = "Banner Use Camile Acessórios";
+const KEY = "am-acessorios-store-v1";
+const STORE_EVENT = "am-acessorios-store";
+const DEFAULT_BANNER_ALT = "Banner AM Acessórios e Makes";
 
 export type StoreScope = "public" | "admin";
 
@@ -239,9 +239,11 @@ export function loadStore(): StoreData {
   }
 }
 
-export function saveStore(data: StoreData) {
+export function saveStore(data: StoreData, options?: { silent?: boolean }) {
   localStorage.setItem(KEY, JSON.stringify(data));
-  notifyStoreChanged();
+  if (!options?.silent) {
+    notifyStoreChanged();
+  }
 }
 
 export async function fetchStoreData(scope: StoreScope = "public"): Promise<StoreData> {
@@ -661,20 +663,22 @@ export function useStore(options?: { scope?: StoreScope; enabled?: boolean }) {
   }, []);
 
   const saveProduct = useCallback(
-    async (product: Product) => {
-      const existing = data.products.find((p) => p.id === product.id);
+    async (product: Product, options?: { silent?: boolean }) => {
       if (!isSupabaseConfigured) {
+        const current = loadStore();
+        const exists = current.products.some((p) => p.id === product.id);
         const next: StoreData = {
-          ...data,
-          products: existing
-            ? data.products.map((p) => (p.id === product.id ? product : p))
-            : [...data.products, product],
+          ...current,
+          products: exists
+            ? current.products.map((p) => (p.id === product.id ? product : p))
+            : [product, ...current.products],
         };
-        saveStore(next);
+        saveStore(next, options);
         setData(next);
         return;
       }
 
+      const existing = data.products.find((p) => p.id === product.id);
       const oldUrl =
         existing?.image_url &&
         existing.image_url !== product.image_url &&
@@ -689,7 +693,9 @@ export function useStore(options?: { scope?: StoreScope; enabled?: boolean }) {
           ? prev.products.map((p) => (p.id === saved.id ? saved : p))
           : [saved, ...prev.products],
       }));
-      notifyStoreChanged();
+      if (!options?.silent) {
+        notifyStoreChanged();
+      }
     },
     [data],
   );

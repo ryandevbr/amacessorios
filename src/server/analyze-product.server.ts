@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { DEFAULT_CATEGORIES, DEFAULT_MATERIALS } from "@/data/catalog";
 
 export type AiProviderName = "groq" | "gemini" | "openrouter";
 
@@ -40,9 +41,9 @@ interface AttemptFailure {
 }
 
 const DEFAULT_PROVIDER_ORDER: AiProviderName[] = ["groq", "gemini", "openrouter"];
-const DEFAULT_GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const DEFAULT_GROQ_MODEL = "qwen/qwen3.8-27b";
 const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
-const DEFAULT_GEMINI_FALLBACK_MODELS = ["gemini-3.8-flash"];
+const DEFAULT_GEMINI_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-3.8-flash"];
 const DEFAULT_OPENROUTER_MODELS = ["openrouter/free"];
 
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
@@ -389,17 +390,21 @@ function matchAllowedOptionWithFallback(value: unknown, allowed: string[]): stri
 
 function buildSystemPrompt(categories: string[], materials: string[]): string {
   return [
-    "Você é a especialista em curadoria e copywriting da loja brasileira de joias e acessórios femininos 'Use Camile Acessórios'.",
-    "Analise cuidadosamente a foto do acessório e responda EXCLUSIVAMENTE com um objeto JSON válido em português do Brasil (pt-BR), sem markdown, sem comentários e sem texto extra.",
+    "Você é a especialista em curadoria e copywriting da loja brasileira 'AM Acessórios e Makes', que vende acessórios femininos, bijuterias, peças em prata, bolsas, cintos, maquiagens, chapéus, lenços, meias-calças e acessórios de cabelo.",
+    "Analise cuidadosamente a foto do produto e responda EXCLUSIVAMENTE com um objeto JSON válido em português do Brasil (pt-BR), sem markdown, sem comentários e sem texto extra.",
+    "",
+    "Diretrizes de classificação:",
+    "- Reconheça corretamente tanto joias e bijuterias (brincos, colares, chokers, pulseiras, braceletes, anéis, conjuntos, piercing fake) quanto maquiagens (batom, gloss, blush, sombra, paleta, base, pó, rímel, delineador, pincel, esponja), cintos, bolsas, lenços, chapéus, acessórios de cabelo (piranhas, presilhas, tiaras, scrunchies, laços) e meia-calça.",
+    "- Em 'material', escolha a linha ou material mais coerente dentre as opções disponíveis: produtos de maquiagem/cosméticos/pincéis devem usar 'Maquiagem'; bolsas e cintos estruturados tendem a 'Couro'; bijuterias douradas, banhadas ou com pedrarias tendem a 'Bijuteria Fina'; peças prateadas tendem a 'Prata'; chapéus, lenços, acessórios de cabelo e meia-calça tendem a 'Acessório' (respeitando estritamente as opções listadas).",
     "",
     "Schema JSON obrigatório:",
     "{",
-    '  "name": "string — nome comercial elegante, curto e atrativo em português (ex.: Brinco Argola Cravejada Zircônias), sem SKU, preço ou nome da loja",',
+    '  "name": "string — nome comercial elegante, curto e atrativo em português (ex.: Brinco Argola Orgânica Dourada, Gloss Labial Brilho Espelhado, Bolsa Tiracolo Caramelo, Cinto Fivela Dourada, Piranha de Cabelo Fosca), sem SKU, preço ou nome da loja",',
     `  "category": "string — EXATAMENTE uma opção de: ${categories.join(", ")}",`,
-    `  "material": "string — EXATAMENTE uma opção de: ${materials.join(", ")} (peças douradas/banhadas a ouro tendem a ser Semijoia e peças prateadas tendem a ser Prata 925, respeitando estritamente as opções disponíveis)",`,
-    '  "description": "string — 2 a 3 frases elegantes, femininas e persuasivas destacando estilo, brilho e versatilidade, SEM inventar medidas em cm/mm, peso ou garantia",',
+    `  "material": "string — EXATAMENTE uma opção de: ${materials.join(", ")}",`,
+    '  "description": "string — 2 a 3 frases atraentes, femininas e persuasivas destacando estilo, acabamento, versatilidade ou efeito no look/make, SEM inventar medidas em cm/mm, peso, volume não visível ou garantia",',
     '  "characteristics": [',
-    '    { "label": "string (ex.: Acabamento, Cor, Pedra, Fecho, Estilo, Ocasião)", "value": "string — apenas atributos visíveis, sem inventar tamanhos numéricos" }',
+    '    { "label": "string (ex.: Acabamento, Cor/Tom, Material, Fecho/Alça, Textura, Estilo, Ocasião)", "value": "string — apenas atributos visíveis, sem inventar medidas ou volumes numéricos" }',
     "  ] // de 3 a 5 itens",
     "}",
   ].join("\n");
@@ -411,7 +416,7 @@ function buildGeminiResponseSchema(categories: string[], materials: string[]) {
     properties: {
       name: {
         type: "STRING",
-        description: "Nome comercial elegante, curto e atrativo em português.",
+        description: "Nome comercial atraente, curto e claro em português.",
       },
       category: {
         type: "STRING",
@@ -421,12 +426,12 @@ function buildGeminiResponseSchema(categories: string[], materials: string[]) {
       material: {
         type: "STRING",
         enum: materials,
-        description: "Material exato escolhido dentre as opções disponíveis.",
+        description: "Material ou linha exata escolhida dentre as opções disponíveis.",
       },
       description: {
         type: "STRING",
         description:
-          "Descrição de 2 a 3 frases elegantes, femininas e persuasivas sem inventar medidas, peso ou garantia.",
+          "Descrição de 2 a 3 frases atraentes, femininas e persuasivas destacando estilo e versatilidade sem inventar medidas, peso, volume não visível ou garantia.",
       },
       characteristics: {
         type: "ARRAY",
@@ -561,7 +566,7 @@ async function callOpenAiCompatibleVision(params: {
   };
   if (params.attempt.provider === "openrouter") {
     if (params.referer) headers["http-referer"] = params.referer;
-    headers["x-title"] = "Use Camile Acessorios";
+    headers["x-title"] = "AM Acessorios e Makes";
   }
 
   let res: Response;
@@ -581,7 +586,7 @@ async function callOpenAiCompatibleVision(params: {
             content: [
               {
                 type: "text",
-                text: "Analise esta peça de acessório e retorne apenas o JSON preenchido.",
+                text: "Analise a foto deste produto (acessório, bijuteria, bolsa, cinto, maquiagem, chapéu, lenço ou acessório de cabelo) e retorne apenas o JSON preenchido.",
               },
               {
                 type: "image_url",
@@ -708,15 +713,8 @@ export async function handleAnalyzeProductRequest(request: Request): Promise<Res
   const resolvedImage = await resolveImageData(body);
   if (resolvedImage instanceof Response) return resolvedImage;
 
-  const availableCategories = sanitizeOptionList(body.availableCategories, [
-    "Anéis",
-    "Colares",
-    "Brincos",
-    "Pulseiras",
-    "Tornozeleiras",
-    "Conjuntos",
-  ]);
-  const availableMaterials = sanitizeOptionList(body.availableMaterials, ["Prata 925", "Semijoia"]);
+  const availableCategories = sanitizeOptionList(body.availableCategories, [...DEFAULT_CATEGORIES]);
+  const availableMaterials = sanitizeOptionList(body.availableMaterials, [...DEFAULT_MATERIALS]);
   const referer = request.headers.get("origin") ?? request.headers.get("referer") ?? undefined;
 
   let hadDemandFailure = false;

@@ -29,15 +29,25 @@ describe("Catalog options service (fallback local)", () => {
 
     expect(categories).toEqual(
       expect.arrayContaining([
-        "Anéis",
-        "Colares",
         "Brincos",
+        "Colares",
+        "Chokers",
         "Pulseiras",
-        "Tornozeleiras",
+        "Braceletes",
+        "Anéis",
         "Conjuntos",
+        "Piercing Fake",
+        "Cintos",
+        "Bolsas",
+        "Maquiagens",
+        "Acessórios de Cabelo",
+        "Chapéus & Lenços",
+        "Meia-calça",
       ]),
     );
-    expect(materials).toEqual(expect.arrayContaining(["Prata 925", "Semijoia"]));
+    expect(materials).toEqual(
+      expect.arrayContaining(["Bijuteria Fina", "Prata", "Couro", "Maquiagem", "Acessório"]),
+    );
   });
 
   it("trims whitespace, blocks empty values, and prevents case-insensitive duplicates", async () => {
@@ -56,7 +66,7 @@ describe("Catalog options service (fallback local)", () => {
 
   it("merges and deduplicates option lists case-insensitively", () => {
     expect(
-      mergeOptionValues(["Prata 925", "Semijoia"], ["semijoia", "Aço Inox", "  PRATA 925 "]),
-    ).toEqual(["Prata 925", "Semijoia", "Aço Inox"]);
+      mergeOptionValues(["Bijuteria Fina", "Prata"], ["prata", "Couro", "  BIJUTERIA FINA "]),
+    ).toEqual(["Bijuteria Fina", "Prata", "Couro"]);
   });
 });

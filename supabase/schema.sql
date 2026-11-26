@@ -1,5 +1,5 @@
 -- ============================================================================
--- Use Camile Acessórios — Schema completo para Supabase (PostgreSQL + Storage)
+-- AM Acessórios e Makes — Schema completo para Supabase (PostgreSQL + Storage)
 -- Execute este arquivo no SQL Editor do projeto Supabase.
 -- ============================================================================
 
@@ -51,7 +51,7 @@ create table if not exists public.hero_banners (
   id uuid primary key default gen_random_uuid(),
   image_url text not null check (btrim(image_url) <> ''),
   mobile_image_url text,
-  alt text not null default 'Banner Use Camile Acessórios' check (btrim(alt) <> ''),
+  alt text not null default 'Banner AM Acessórios e Makes' check (btrim(alt) <> ''),
   active boolean not null default true,
   filter text not null default '',
   display_order integer not null default 0,
@@ -183,21 +183,32 @@ insert into public.store_settings (id, announcement_active, announcement_text, a
 values (
   1,
   true,
-  'Sua primeira compra merece um brilho extra: 10% OFF com PRIMEIRACOMPRA',
+  'Acessórios & Makes a partir de R$ 6 ✨ Use o cupom PRIMEIRACOMPRA e ganhe 10% OFF',
   '#vitrine'
 )
 on conflict (id) do nothing;
 
 insert into public.catalog_options (type, name)
 values
-  ('category', 'Anéis'),
-  ('category', 'Colares'),
   ('category', 'Brincos'),
+  ('category', 'Colares'),
+  ('category', 'Chokers'),
   ('category', 'Pulseiras'),
-  ('category', 'Tornozeleiras'),
+  ('category', 'Braceletes'),
+  ('category', 'Anéis'),
   ('category', 'Conjuntos'),
-  ('material', 'Prata 925'),
-  ('material', 'Semijoia')
+  ('category', 'Piercing Fake'),
+  ('category', 'Cintos'),
+  ('category', 'Bolsas'),
+  ('category', 'Maquiagens'),
+  ('category', 'Acessórios de Cabelo'),
+  ('category', 'Chapéus & Lenços'),
+  ('category', 'Meia-calça'),
+  ('material', 'Bijuteria Fina'),
+  ('material', 'Prata'),
+  ('material', 'Couro'),
+  ('material', 'Maquiagem'),
+  ('material', 'Acessório')
 on conflict do nothing;
 
 -- ----------------------------------------------------------------------------
