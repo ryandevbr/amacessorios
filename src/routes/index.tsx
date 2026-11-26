@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Storefront } from "@/components/storefront";
 
 // Atualize o domínio abaixo se o subdomínio na Vercel for diferente
-const SITE_URL = "https://amacessorio.vercel.app";
+const SITE_URL = "https://amacessorios.vercel.app";
 const OG_IMAGE_URL = `${SITE_URL}/og-image.png`;
 const OG_TITLE = "AM Acessórios e Makes | Catálogo Online e Loja Física";
 const OG_DESCRIPTION =
