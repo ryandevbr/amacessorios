@@ -10,7 +10,6 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
-import { BrandLogo } from "@/components/brand-logo";
 
 import appCss from "../styles.css?url";
 
@@ -18,7 +17,11 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <BrandLogo size="lg" className="mx-auto mb-8" />
+        <img
+          src="/logo.png"
+          alt="AM Acessórios e Makes"
+          className="mx-auto mb-8 h-20 w-auto object-contain"
+        />
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">
           Esta página não foi encontrada
@@ -46,7 +49,11 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <BrandLogo size="footer" className="mx-auto mb-6" />
+        <img
+          src="/logo.png"
+          alt="AM Acessórios e Makes"
+          className="mx-auto mb-6 h-14 w-auto object-contain"
+        />
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           Não foi possível carregar esta página
         </h1>
@@ -106,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.png", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

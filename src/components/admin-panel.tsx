@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { BatchImportDialog } from "@/components/batch-import-dialog";
-import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -479,7 +478,11 @@ export function AdminPanel() {
     <main className="min-h-screen bg-background">
       <header className="border-b">
         <div className="shell h-18 md:h-21 flex items-center justify-between gap-3">
-          <BrandLogo size="header" />
+          <img
+            src="/logo.png"
+            alt="AM Acessórios e Makes"
+            className="h-10 w-auto object-contain"
+          />
           <div className="flex gap-2 shrink-0">
             <Button
               variant="ghost"

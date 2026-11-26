@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
-import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { enterDemoSession, getAuthState, signInAdmin } from "@/services/authService";
@@ -63,7 +62,11 @@ function Login() {
   return (
     <main className="min-h-screen bg-muted grid place-items-center px-6 py-10">
       <div className="w-full max-w-sm text-center">
-        <BrandLogo size="lg" className="mx-auto mb-6" />
+        <img
+          src="/logo.png"
+          alt="AM Acessórios e Makes"
+          className="mx-auto mb-6 h-20 w-auto object-contain"
+        />
         <LockKeyhole size={22} className="mx-auto text-primary mb-4" />
         <h1 className="text-4xl">Seu espaço de cuidado</h1>
         <p className="text-muted-foreground text-xs mt-3 mb-8">Painel da AM Acessórios e Makes</p>

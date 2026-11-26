@@ -19,7 +19,6 @@ import {
   Gift,
   X,
 } from "lucide-react";
-import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -239,7 +238,11 @@ export function Storefront() {
             aria-label="AM Acessórios e Makes — início"
             className="inline-flex items-center shrink-0"
           >
-            <BrandLogo size="header" />
+            <img
+              src="/logo.png"
+              alt="AM Acessórios e Makes"
+              className="h-11 sm:h-12 w-auto object-contain"
+            />
           </a>
           <nav className="hidden md:flex justify-center gap-8 text-xs text-muted-foreground">
             <a href="#inicio" className="transition-colors hover:text-primary">
@@ -640,7 +643,11 @@ export function Storefront() {
       <footer className="bg-secondary/75 border-t border-brand-accent-light/40 pt-10 pb-24 md:pb-8">
         <div className="shell grid md:grid-cols-[1fr_1.2fr_1fr] gap-6 items-center">
           <div className="flex flex-col items-start">
-            <BrandLogo size="footer" />
+            <img
+              src="/logo.png"
+              alt="AM Acessórios e Makes"
+              className="h-14 w-auto object-contain"
+            />
             <p className="text-[11px] text-muted-foreground mt-3 max-w-xs">{storeContent.slogan}</p>
           </div>
           <div className="text-xs text-muted-foreground md:text-center leading-7">
