@@ -1,75 +1,69 @@
-const HEIC_EXT_RE = /\.(heic|heif)$/i;
+const HEIC_MIME_TYPES = new Set([
+  "image/heic",
+  "image/heif",
+  "image/heic-sequence",
+  "image/heif-sequence",
+]);
 
-export type HeicToConverter = (args: {
-  blob: Blob;
-  type: "image/jpeg";
-  quality?: number;
-}) => Promise<Blob>;
+const HEIC_EXTENSION_RE = /\.(heic|heif)$/i;
 
-export interface NormalizeImageDeps {
-  nativeDecode?: (file: File) => Promise<Blob | null>;
-  heicToConvert?: HeicToConverter;
-}
+let heicConversionQueue: Promise<unknown> = Promise.resolve();
 
-let conversionQueue: Promise<void> = Promise.resolve();
-
-function enqueueConversion<T>(task: () => Promise<T>): Promise<T> {
-  const run = conversionQueue.then(task, task);
-  conversionQueue = run.then(
+function enqueueHeicConversion<T>(task: () => Promise<T>): Promise<T> {
+  const next = heicConversionQueue.then(task, task);
+  heicConversionQueue = next.then(
     () => undefined,
     () => undefined,
   );
-  return run;
+  return next;
 }
 
-export function isHeicFile(file: Pick<File, "name" | "type">): boolean {
-  const mime = (file.type ?? "").trim().toLowerCase();
-  if (mime.includes("heic") || mime.includes("heif")) return true;
-  return HEIC_EXT_RE.test(file.name.trim().toLowerCase());
-}
-
-function toJpegFileName(originalName: string): string {
-  const clean = originalName.trim();
-  if (!clean) return "imagem.jpg";
-  if (HEIC_EXT_RE.test(clean)) {
-    return clean.replace(HEIC_EXT_RE, ".jpg");
+function replaceExtensionWithJpg(filename: string): string {
+  const trimmed = filename.trim();
+  if (!trimmed) return "imagem.jpg";
+  if (HEIC_EXTENSION_RE.test(trimmed)) {
+    return trimmed.replace(HEIC_EXTENSION_RE, ".jpg");
   }
-  return `${clean}.jpg`;
-}
-
-function extractErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message.trim();
-  if (err && typeof err === "object" && "message" in err) {
-    return String((err as { message: unknown }).message).trim();
+  const dotIdx = trimmed.lastIndexOf(".");
+  if (dotIdx > 0) {
+    return `${trimmed.slice(0, dotIdx)}.jpg`;
   }
-  return "";
+  return `${trimmed}.jpg`;
 }
 
-async function canvasToJpegBlob(
-  source: CanvasImageSource,
-  width: number,
-  height: number,
-): Promise<Blob | null> {
-  if (typeof document === "undefined" || width <= 0 || height <= 0) {
+export function isHeicFile(file: File): boolean {
+  const mime = file.type.trim().toLowerCase();
+  if (mime && HEIC_MIME_TYPES.has(mime)) {
+    return true;
+  }
+  return HEIC_EXTENSION_RE.test(file.name.trim());
+}
+
+async function tryNativeHeicToJpeg(file: File): Promise<File | null> {
+  if (typeof createImageBitmap !== "function" || typeof document === "undefined") {
     return null;
   }
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  ctx.drawImage(source, 0, 0, width, height);
-  return new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((blob) => resolve(blob && blob.size > 0 ? blob : null), "image/jpeg", 0.92);
-  });
-}
 
-async function tryDecodeWithBitmap(file: File): Promise<Blob | null> {
-  if (typeof createImageBitmap !== "function") return null;
   let bitmap: ImageBitmap | null = null;
   try {
     bitmap = await createImageBitmap(file);
-    return await canvasToJpegBlob(bitmap, bitmap.width, bitmap.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, bitmap.width);
+    canvas.height = Math.max(1, bitmap.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((result) => resolve(result), "image/jpeg", 0.92);
+    });
+    if (!blob) return null;
+
+    return new File([blob], replaceExtensionWithJpg(file.name), {
+      type: "image/jpeg",
+      lastModified: file.lastModified || Date.now(),
+    });
   } catch {
     return null;
   } finally {
@@ -77,89 +71,31 @@ async function tryDecodeWithBitmap(file: File): Promise<Blob | null> {
   }
 }
 
-async function tryDecodeWithHtmlImage(file: File): Promise<Blob | null> {
-  if (
-    typeof Image === "undefined" ||
-    typeof URL === "undefined" ||
-    typeof URL.createObjectURL !== "function"
-  ) {
-    return null;
-  }
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error("native image decode failed"));
-      el.src = objectUrl;
-    });
-    const width = img.naturalWidth || img.width;
-    const height = img.naturalHeight || img.height;
-    return await canvasToJpegBlob(img, width, height);
-  } catch {
-    return null;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-async function tryNativeDecodeToJpeg(file: File): Promise<Blob | null> {
-  const viaBitmap = await tryDecodeWithBitmap(file);
-  if (viaBitmap) return viaBitmap;
-  return tryDecodeWithHtmlImage(file);
-}
-
-export async function normalizeImageFile(
-  file: File,
-  deps?: NormalizeImageDeps,
-): Promise<File> {
-  // Camada 0 — Detecção: se não for HEIC/HEIF, retorna o arquivo original intacto
+export async function normalizeImageFile(file: File): Promise<File> {
   if (!isHeicFile(file)) {
     return file;
   }
 
-  const nextName = toJpegFileName(file.name);
-
-  // Camada 1 — Decodificação nativa / arquivos renomeados (.HEIC que já são JPEG/WebP ou suporte nativo HEVC)
-  const nativeDecoder = deps?.nativeDecode ?? tryNativeDecodeToJpeg;
-  try {
-    const nativeJpeg = await nativeDecoder(file);
-    if (nativeJpeg instanceof Blob && nativeJpeg.size > 0) {
-      return new File([nativeJpeg], nextName, {
-        type: "image/jpeg",
-        lastModified: Date.now(),
-      });
-    }
-  } catch {
-    // Segue para a Camada 2 (WASM heic-to)
+  const nativeConverted = await tryNativeHeicToJpeg(file);
+  if (nativeConverted) {
+    return nativeConverted;
   }
 
-  // Camada 2 — Fila sequencial (Mutex) + heic-to para decodificar apenas 1 HEIC por vez
-  let convertedBlob: Blob;
-  try {
-    convertedBlob = await enqueueConversion(async () => {
-      const convert: HeicToConverter =
-        deps?.heicToConvert ?? (await import("heic-to")).heicTo;
-      return convert({
+  return enqueueHeicConversion(async () => {
+    try {
+      const { heicTo } = await import("heic-to");
+      const blob = await heicTo({
         blob: file,
         type: "image/jpeg",
         quality: 0.9,
       });
-    });
-  } catch (err) {
-    const reason = extractErrorMessage(err);
-    const suffix = reason ? ` (${reason.slice(0, 80)})` : "";
-    throw new Error(
-      `Não foi possível converter a imagem HEIC/HEIF para JPEG${suffix}. Verifique se o arquivo não está corrompido.`,
-    );
-  }
-
-  if (!(convertedBlob instanceof Blob) || convertedBlob.size === 0) {
-    throw new Error("Não foi possível converter a imagem HEIC/HEIF para JPEG.");
-  }
-
-  return new File([convertedBlob], nextName, {
-    type: "image/jpeg",
-    lastModified: Date.now(),
+      return new File([blob], replaceExtensionWithJpg(file.name), {
+        type: "image/jpeg",
+        lastModified: file.lastModified || Date.now(),
+      });
+    } catch (err) {
+      const reason = err instanceof Error && err.message ? ` (${err.message})` : "";
+      throw new Error(`Não foi possível converter a imagem HEIC "${file.name}" para JPG.${reason}`);
+    }
   });
 }

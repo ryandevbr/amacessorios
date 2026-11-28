@@ -8,20 +8,25 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
+import {
+  STORE_CONFIG,
+  applyStoreTheme,
+  buildRootThemeCss,
+  getNicheDisplayName,
+} from "@/config/store.config";
 
 import appCss from "../styles.css?url";
+
+const defaultMetaTitle = `${STORE_CONFIG.name} — ${getNicheDisplayName()}`;
+const defaultMetaDescription = STORE_CONFIG.hero.subtitle;
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <img
-          src="/logo.png"
-          alt="AM Acessórios e Makes"
-          className="mx-auto mb-8 h-28 sm:h-32 w-auto object-contain"
-        />
+        <img src="/logo.png" alt={STORE_CONFIG.name} className="brand-logo mx-auto mb-8" />
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">
           Esta página não foi encontrada
@@ -32,7 +37,7 @@ function NotFoundComponent() {
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Voltar para a vitrine
           </Link>
@@ -49,16 +54,11 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <img
-          src="/logo.png"
-          alt="AM Acessórios e Makes"
-          className="mx-auto mb-6 h-24 sm:h-28 w-auto object-contain"
-        />
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Não foi possível carregar esta página
+          Esta página não carregou
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Ocorreu um erro inesperado. Você pode tentar novamente ou voltar para a vitrine.
+          Algo deu errado por aqui. Você pode tentar novamente ou voltar para o início.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -66,7 +66,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Tentar novamente
           </button>
@@ -82,45 +82,29 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   );
 }
 
-// Atualize o domínio abaixo se o subdomínio na Vercel for diferente
-const SITE_URL = "https://amacessorios.vercel.app";
-const OG_IMAGE_URL = `${SITE_URL}/og-image.png`;
-const OG_TITLE = "AM Acessórios e Makes | Catálogo Online e Loja Física";
-const OG_DESCRIPTION =
-  "Bijuterias, bolsas, cintos e maquiagens a partir de R$ 6. Monte sua sacola online e envie seu pedido direto pelo WhatsApp!";
-
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AM Acessórios e Makes | Catálogo Online e Loja Física — Caruaru" },
-      {
-        name: "description",
-        content:
-          "Bijuterias, bolsas, cintos e maquiagens a partir de R$ 6. Monte sua sacola online e finalize pelo WhatsApp com retirada no Boa Vista (Caruaru-PE) ou entrega.",
-      },
+      { title: defaultMetaTitle },
+      { name: "description", content: defaultMetaDescription },
       { name: "color-scheme", content: "light only" },
-      // Remover no lançamento no domínio oficial.
       { name: "robots", content: "noindex, nofollow" },
-      // Open Graph
-      { property: "og:locale", content: "pt_BR" },
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "AM Acessórios e Makes" },
-      { property: "og:title", content: OG_TITLE },
-      { property: "og:description", content: OG_DESCRIPTION },
-      { property: "og:url", content: `${SITE_URL}/` },
-      { property: "og:image", content: OG_IMAGE_URL },
-      { property: "og:image:secure_url", content: OG_IMAGE_URL },
-      { property: "og:image:type", content: "image/png" },
+      { property: "og:title", content: defaultMetaTitle },
+      { property: "og:description", content: defaultMetaDescription },
+      { property: "og:image", content: "/og-image.png" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
-      { property: "og:image:alt", content: "AM Acessórios e Makes — Caruaru - PE" },
-      // Twitter Card
+      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:alt", content: defaultMetaTitle },
+      { property: "og:type", content: "website" },
+      { property: "og:locale", content: "pt_BR" },
+      { property: "og:site_name", content: STORE_CONFIG.name },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: OG_TITLE },
-      { name: "twitter:description", content: OG_DESCRIPTION },
-      { name: "twitter:image", content: OG_IMAGE_URL },
+      { name: "twitter:title", content: defaultMetaTitle },
+      { name: "twitter:description", content: defaultMetaDescription },
+      { name: "twitter:image", content: "/og-image.png" },
     ],
     links: [
       {
@@ -147,6 +131,10 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="pt-BR">
       <head>
         <HeadContent />
+        <style
+          id="store-theme-vars"
+          dangerouslySetInnerHTML={{ __html: buildRootThemeCss(STORE_CONFIG.theme) }}
+        />
       </head>
       <body>
         {children}
@@ -158,6 +146,13 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    applyStoreTheme(STORE_CONFIG.theme, defaultMetaTitle);
+    if (!document.title.includes(STORE_CONFIG.name)) {
+      document.title = defaultMetaTitle;
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

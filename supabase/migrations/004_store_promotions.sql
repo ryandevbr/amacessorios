@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Migração incremental 004: Espaço Dinâmico de Promoções e Campanhas
--- AM Acessórios e Makes — Seguro para executar em bancos já em produção.
+-- Use Camile Acessórios — Seguro para executar em bancos já em produção.
 -- ============================================================================
 
 alter table public.store_settings

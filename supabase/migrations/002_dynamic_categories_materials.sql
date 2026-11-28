@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Migração incremental 002: Categorias e Materiais dinâmicos
--- AM Acessórios e Makes — Seguro para executar em bancos já em produção
+-- Use Camile Acessórios — Seguro para executar em bancos já em produção
 -- (não apaga nem altera produtos existentes).
 -- ============================================================================
 
@@ -82,25 +82,14 @@ create index if not exists idx_catalog_options_type_created
 -- ----------------------------------------------------------------------------
 insert into public.catalog_options (type, name)
 values
-  ('category', 'Brincos'),
-  ('category', 'Colares'),
-  ('category', 'Chokers'),
-  ('category', 'Pulseiras'),
-  ('category', 'Braceletes'),
   ('category', 'Anéis'),
+  ('category', 'Colares'),
+  ('category', 'Brincos'),
+  ('category', 'Pulseiras'),
+  ('category', 'Tornozeleiras'),
   ('category', 'Conjuntos'),
-  ('category', 'Piercing Fake'),
-  ('category', 'Cintos'),
-  ('category', 'Bolsas'),
-  ('category', 'Maquiagens'),
-  ('category', 'Acessórios de Cabelo'),
-  ('category', 'Chapéus & Lenços'),
-  ('category', 'Meia-calça'),
-  ('material', 'Bijuteria Fina'),
-  ('material', 'Prata'),
-  ('material', 'Couro'),
-  ('material', 'Maquiagem'),
-  ('material', 'Acessório')
+  ('material', 'Prata 925'),
+  ('material', 'Semijoia')
 on conflict do nothing;
 
 insert into public.catalog_options (type, name)

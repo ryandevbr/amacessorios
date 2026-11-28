@@ -75,14 +75,16 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
     expect(res.status).toBe(400);
   });
 
-  it("fails fast from default Groq model to Gemini 2.5 Flash fallback and returns meta", async () => {
+  it("fails fast from Groq 503 to Gemini fallback and returns meta { provider, model }", async () => {
     process.env["AI_PROVIDER_ORDER"] = "groq,gemini,openrouter";
     process.env["GROQ_API_KEY"] = "groq-test";
     process.env["GEMINI_API_KEY"] = "gemini-test";
+    process.env["GEMINI_MODEL"] = "gemini-3.1-flash-lite";
+    process.env["GEMINI_FALLBACK_MODELS"] = "gemini-3.8-flash";
 
     const fetchMock = vi
       .fn()
-      // 1. Groq default model returns 503 with raw English error
+      // 1. Groq returns 503 with raw English error
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ error: { message: "Service temporarily overloaded" } }), {
           status: 503,
@@ -94,7 +96,7 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
           status: 429,
         }),
       )
-      // 3. Gemini default fallback (gemini-2.5-flash) succeeds with markdown-fenced JSON
+      // 3. Gemini fallback succeeds with markdown-fenced JSON
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -106,15 +108,15 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
                       text: [
                         "```json",
                         JSON.stringify({
-                          name: "Gloss Labial Brilho Espelhado",
-                          category: "maquiagens",
-                          material: "maquiagem",
+                          name: "Brinco Argola Cravejada Zircônias",
+                          category: "brincos",
+                          material: "semijoia",
                           description:
-                            "Gloss confortável com brilho espelhado para realçar os lábios em qualquer ocasião. Prático para levar na bolsa e retocar ao longo do dia.",
+                            "Argola sofisticada com brilho delicado para iluminar qualquer produção. Versátil e elegante para o dia a dia ou ocasiões especiais.",
                           characteristics: [
-                            { label: "Acabamento", value: "Brilho espelhado" },
-                            { label: "Textura", value: "Leve e hidratante" },
-                            { label: "Ocasião", value: "Dia a dia e noite" },
+                            { label: "Acabamento", value: "Polido dourado" },
+                            { label: "Pedra", value: "Zircônias cravejadas" },
+                            { label: "Estilo", value: "Clássico atemporal" },
                           ],
                         }),
                         "```",
@@ -136,19 +138,15 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
       body: JSON.stringify({
         imageBase64: SAMPLE_BASE64,
         mimeType: "image/webp",
-        availableCategories: ["Brincos", "Maquiagens", "Bolsas"],
-        availableMaterials: ["Bijuteria Fina", "Maquiagem", "Couro"],
+        niche: "acessorios",
+        availableCategories: ["Brincos", "Colares"],
+        availableMaterials: ["Prata 925", "Semijoia"],
       }),
     });
 
     const res = await handleAnalyzeProductRequest(req);
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(3);
-
-    const groqBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? "{}")) as {
-      model?: string;
-    };
-    expect(groqBody.model).toBe("qwen/qwen3.8-27b");
 
     const json = (await res.json()) as {
       data: {
@@ -159,11 +157,11 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
       };
       meta: { provider: string; model: string };
     };
-    expect(json.data.name).toBe("Gloss Labial Brilho Espelhado");
-    expect(json.data.category).toBe("Maquiagens");
-    expect(json.data.material).toBe("Maquiagem");
+    expect(json.data.name).toBe("Brinco Argola Cravejada Zircônias");
+    expect(json.data.category).toBe("Brincos");
+    expect(json.data.material).toBe("Semijoia");
     expect(json.data.characteristics).toHaveLength(3);
-    expect(json.meta).toEqual({ provider: "gemini", model: "gemini-2.5-flash" });
+    expect(json.meta).toEqual({ provider: "gemini", model: "gemini-3.8-flash" });
   });
 
   it("never leaks raw English error when all providers fail with 503/429", async () => {
@@ -187,7 +185,7 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
         imageBase64: SAMPLE_BASE64,
         mimeType: "image/webp",
         availableCategories: ["Brincos"],
-        availableMaterials: ["Bijuteria Fina"],
+        availableMaterials: ["Semijoia"],
       }),
     });
 
@@ -205,11 +203,188 @@ describe("POST /api/analyze-product multi-provider cascade", () => {
     const parsed = parseAndNormalizeAiJson(
       '```json\n{"name":"Colar Luz","category":"Inexistente","material":"Ouro Maciço","description":"Brilho delicado.","characteristics":[{"label":"Cor","value":"Dourado"}]}\n```',
       ["Colares", "Brincos"],
-      ["Bijuteria Fina", "Prata"],
+      ["Semijoia", "Prata 925"],
     );
 
     expect(parsed).not.toBeNull();
     expect(parsed?.category).toBe("Colares");
-    expect(parsed?.material).toBe("Bijuteria Fina");
+    expect(parsed?.material).toBe("Semijoia");
+  });
+
+  it("adapts prompt and default options for niche 'moda'", async () => {
+    process.env["GROQ_API_KEY"] = "groq-test";
+
+    let capturedBody = "";
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      capturedBody = typeof init?.body === "string" ? init.body : "";
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  name: "Vestido Midi Linho Natural",
+                  category: "Vestidos",
+                  material: "Linho",
+                  description:
+                    "Vestido midi com caimento fluido e toque fresco, perfeito para almoços ao ar livre e eventos diurnos com máximo conforto.",
+                  characteristics: [
+                    { label: "Tecido", value: "Linho natural" },
+                    { label: "Caimento", value: "Fluido e acinturado" },
+                    { label: "Ocasião", value: "Eventos diurnos e casuais" },
+                  ],
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+    globalThis.fetch = fetchMock;
+
+    const req = new Request("http://localhost/api/analyze-product", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        imageBase64: SAMPLE_BASE64,
+        mimeType: "image/webp",
+        niche: "moda",
+        // Even if stale accessories options are passed, moda must strip them and enforce fashion defaults
+        availableCategories: ["Anéis", "Brincos", "Colares"],
+        availableMaterials: ["Prata 925", "Semijoia"],
+      }),
+    });
+
+    const res = await handleAnalyzeProductRequest(req);
+    expect(res.status).toBe(200);
+    expect(capturedBody).toContain("Moda Feminina");
+    expect(capturedBody).toContain("Vestidos");
+    expect(capturedBody).toContain("Alfaiataria");
+    expect(capturedBody).toContain("caimento, ocasião de uso e conforto");
+    expect(capturedBody).not.toContain("Anéis");
+    expect(capturedBody).not.toContain("Brincos");
+    expect(capturedBody).not.toContain("Prata 925");
+    expect(capturedBody).not.toContain("Semijoia");
+
+    const json = (await res.json()) as {
+      data: { name: string; category: string; material: string };
+    };
+    expect(json.data.category).toBe("Vestidos");
+    expect(json.data.material).toBe("Linho");
+  });
+
+  it("adapts prompt and strips accessory terms for niche 'calcados'", async () => {
+    process.env["GROQ_API_KEY"] = "groq-test";
+
+    let capturedBody = "";
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      capturedBody = typeof init?.body === "string" ? init.body : "";
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  name: "Sandália Salto Bloco Napa",
+                  category: "Sandálias",
+                  material: "Napa",
+                  description:
+                    "Sandália confortável de calce macio e estilo atemporal, perfeita para o trabalho e eventos.",
+                  characteristics: [
+                    { label: "Material", value: "Napa" },
+                    { label: "Salto", value: "Bloco" },
+                    { label: "Ocasião", value: "Dia a dia e eventos" },
+                  ],
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const req = new Request("http://localhost/api/analyze-product", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        imageBase64: SAMPLE_BASE64,
+        mimeType: "image/webp",
+        niche: "calcados",
+        availableCategories: ["Anéis", "Brincos", "Colares"],
+        availableMaterials: ["Prata 925", "Semijoia"],
+      }),
+    });
+
+    const res = await handleAnalyzeProductRequest(req);
+    expect(res.status).toBe(200);
+    expect(capturedBody).toContain("Calçados");
+    expect(capturedBody).toContain("Sandálias");
+    expect(capturedBody).toContain("Couro");
+    expect(capturedBody).not.toContain("Anéis");
+    expect(capturedBody).not.toContain("Brincos");
+    expect(capturedBody).not.toContain("Prata 925");
+    expect(capturedBody).not.toContain("Semijoia");
+
+    const json = (await res.json()) as {
+      data: { name: string; category: string; material: string; estimatedPrice?: number | null };
+    };
+    expect(json.data.category).toBe("Sandálias");
+    expect(json.data.material).toBe("Napa");
+    expect(json.data.estimatedPrice).toBeUndefined();
+  });
+
+  it("includes niche price guidance and normalized .90 estimatedPrice when estimatePrice is true", async () => {
+    process.env["GROQ_API_KEY"] = "groq-test";
+
+    let capturedBody = "";
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      capturedBody = typeof init?.body === "string" ? init.body : "";
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  name: "Vestido Longo Linho",
+                  category: "Vestidos",
+                  material: "Linho",
+                  description: "Caimento impecável para dias especiais.",
+                  characteristics: [
+                    { label: "Tecido", value: "Linho" },
+                    { label: "Caimento", value: "Fluido" },
+                    { label: "Ocasião", value: "Eventos" },
+                  ],
+                  estimatedPrice: 174.37,
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const req = new Request("http://localhost/api/analyze-product", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        imageBase64: SAMPLE_BASE64,
+        mimeType: "image/webp",
+        niche: "moda",
+        estimatePrice: true,
+      }),
+    });
+
+    const res = await handleAnalyzeProductRequest(req);
+    expect(res.status).toBe(200);
+    expect(capturedBody).toContain("estimatedPrice");
+    expect(capturedBody).toContain("119.90 e 219.90");
+
+    const json = (await res.json()) as {
+      data: { estimatedPrice?: number | null };
+    };
+    expect(json.data.estimatedPrice).toBe(174.9);
   });
 });
