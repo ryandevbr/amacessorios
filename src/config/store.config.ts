@@ -50,6 +50,7 @@ export interface StoreConfig {
  */
 export const STORE_CONFIG = {
   slug: import.meta.env.VITE_STORE_SLUG || "amacessorios",
+  siteUrl: "https://amacessorios.vercel.app",
   name: "amacessorios",
   niche: "acessorios" as StoreNiche,
   enableAiDemoPricing: true,
